@@ -59,7 +59,7 @@ if emergencies:
     for article in emergencies:
         st.markdown(f"#### [{article['title']}]({article['link']})", unsafe_allow_html=True)
         st.caption(f"{article['source']} — {article['published']}")
-        st.write(article['summary'])
+        st.markdown(article['summary'], unsafe_allow_html=True)
         st.markdown("---")
 
 # --- Main Dashboard ---
