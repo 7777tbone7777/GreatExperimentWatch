@@ -7,15 +7,15 @@ st.set_page_config(page_title="Great Experiment Watch", layout="wide")
 
 # --- News Feeds ---
 RSS_FEEDS = {
-    "Reuters": "http://feeds.reuters.com/reuters/worldNews",
-    "BBC": "http://feeds.bbci.co.uk/news/world/rss.xml",
-    "The Guardian": "https://www.theguardian.com/world/rss",
-    "Al Jazeera": "https://www.aljazeera.com/xml/rss/all.xml",
-    "Associated Press": "https://apnews.com/rss",
-    "NPR": "https://www.npr.org/rss/rss.php?id=1004",
-    "Freedom House": "https://freedomhouse.org/rss/press-releases",
-    "Amnesty International": "https://www.amnesty.org/en/feed/",
-    "Human Rights Watch": "https://www.hrw.org/rss/news",
+    "Reuters": ("http://feeds.reuters.com/reuters/worldNews", "International"),
+    "BBC": ("http://feeds.bbci.co.uk/news/world/rss.xml", "International"),
+    "The Guardian": ("https://www.theguardian.com/world/rss", "International"),
+    "Al Jazeera": ("https://www.aljazeera.com/xml/rss/all.xml", "International"),
+    "Associated Press": ("https://apnews.com/rss", "US"),
+    "NPR": ("https://www.npr.org/rss/rss.php?id=1004", "US"),
+    "Freedom House": ("https://freedomhouse.org/rss/press-releases", "US"),
+    "Amnesty International": ("https://www.amnesty.org/en/feed/", "International"),
+    "Human Rights Watch": ("https://www.hrw.org/rss/news", "International"),
 }
 
 KEYWORDS = [
@@ -26,69 +26,83 @@ KEYWORDS = [
 
 # --- Sidebar ---
 st.sidebar.title("🌐 Sources")
-selected_sources = st.sidebar.multiselect("Select news sources:", list(RSS_FEEDS.keys()), default=list(RSS_FEEDS.keys()))
+selected_sources = st.sidebar.multiselect(
+    "Select news sources:",
+    list(RSS_FEEDS.keys()),
+    default=list(RSS_FEEDS.keys())
+)
+
 search_term = st.sidebar.text_input("🔍 Search keywords")
+
+# --- Democracy Monitor ---
+st.sidebar.markdown("### 🧭 Democracy Lifespan Monitor")
+st.sidebar.markdown("Estimated % of Democracy Remaining")
+st.sidebar.progress(0.68)  # placeholder static value for now
 
 # --- Fetch & Filter ---
 def fetch_articles():
-    articles = []
+    us_articles = []
+    intl_articles = []
     for source in selected_sources:
-        feed = feedparser.parse(RSS_FEEDS[source])
+        feed_url, region = RSS_FEEDS[source]
+        feed = feedparser.parse(feed_url)
         for entry in feed.entries:
             content = f"{entry.title} {entry.get('summary', '')}".lower()
             if any(kw.lower() in content for kw in KEYWORDS) or (search_term.lower() in content if search_term else False):
-                articles.append({
+                article = {
                     "title": entry.title,
-                    "summary": entry.get("summary", "No summary available.").replace("<p>", "").replace("</p>", ""),
+                    "summary": entry.get("summary", "No summary available."),
                     "link": entry.link,
                     "source": source,
                     "published": entry.get("published", "No date"),
-                })
-    return articles
+                    "rendered_html": f"""
+                        <h4><a href="{entry.link}" target="_blank">{entry.title}</a></h4>
+                        <small><i>{source} — {entry.get("published", "No date")}</i></small>
+                        <p>{entry.get("summary", "No summary available.")}</p>
+                        <hr>
+                    """
+                }
+                if region == "US":
+                    us_articles.append(article)
+                else:
+                    intl_articles.append(article)
+    return us_articles, intl_articles
 
-articles = fetch_articles()
+us_articles, intl_articles = fetch_articles()
+all_articles = us_articles + intl_articles
 
-# --- Emergency Alert Filtering ---
-emergency_terms = ["military coup", "martial law"]
-emergencies = [a for a in articles if any(term in a['summary'].lower() for term in emergency_terms)]
-non_emergencies = [a for a in articles if a not in emergencies]
+# --- Emergency Alert ---
+alert_triggered = any(
+    "military coup" in a['summary'].lower() or "martial law" in a['summary'].lower()
+    for a in all_articles
+)
 
-if emergencies:
+if alert_triggered:
     st.error("🚨 EMERGENCY ALERT: Potential authoritarian escalation detected.")
-    st.markdown("### 🚨 Emergency Incidents")
-    for article in emergencies:
-        st.markdown(f"#### [{article['title']}]({article['link']})", unsafe_allow_html=True)
-        st.caption(f"{article['source']} — {article['published']}")
-        st.markdown(article['summary'], unsafe_allow_html=True)
-        st.markdown("---")
+
+# --- Emergency Incident Section ---
+if alert_triggered:
+    st.markdown("## 🧨 Emergency Incidents")
+    for a in all_articles:
+        if "military coup" in a['summary'].lower() or "martial law" in a['summary'].lower():
+            st.markdown(a['rendered_html'], unsafe_allow_html=True)
 
 # --- Main Dashboard ---
-st.title("🛡️ Great Experiment Watch")
+st.markdown("## 🛡️ Great Experiment Watch")
 st.markdown("Monitoring global threats to democracy in real time.")
 
-st.write(f"### {len(articles)} articles matched")
+st.write(f"### {len(all_articles)} articles matched")
 
-for article in non_emergencies:
-    st.markdown(f"#### [{article['title']}]({article['link']})", unsafe_allow_html=True)
-    st.caption(f"{article['source']} — {article['published']}")
-    st.write(article['summary'])
-    st.markdown("---")
+# --- Grouped Articles ---
+if us_articles:
+    st.markdown("## 🇺🇸 U.S. Articles")
+    for a in us_articles:
+        st.markdown(a['rendered_html'], unsafe_allow_html=True)
 
-# --- Democracy Lifespan Monitor ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("📉 Democracy Lifespan Monitor")
-lifespan_pct = st.sidebar.slider("Estimated % of Democracy Remaining", 0, 100, 68)
-st.sidebar.progress(lifespan_pct / 100)
-
-# --- Plan to Leave Section ---
-with st.expander("📦 View / Edit Your Emergency Relocation Plan"):
-    st.markdown("""
-    - **Passport:** ✅ Ready  
-    - **Digital Security:** [Update device encryption, 2FA, password manager]  
-    - **Relocation Country Shortlist:** Spain 🇪🇸, Portugal 🇵🇹, Ireland 🇮🇪  
-    - **Money Moved Offshore:** [in progress]  
-    - **Citizenship by Descent:** [father: Cuba 🇨🇺 → Spain path]  
-    """)
+if intl_articles:
+    st.markdown("## 🌍 International Articles")
+    for a in intl_articles:
+        st.markdown(a['rendered_html'], unsafe_allow_html=True)
 
 # --- Export PDF ---
 def generate_pdf(data):
@@ -113,8 +127,8 @@ def generate_pdf(data):
     return filename
 
 if st.button("📄 Export Intelligence Brief (PDF)"):
-    if articles:
-        filename = generate_pdf(articles)
+    if all_articles:
+        filename = generate_pdf(all_articles)
         st.success(f"PDF generated: {filename}")
         with open(filename, "rb") as f:
             st.download_button("📥 Download PDF", f, file_name=filename)
