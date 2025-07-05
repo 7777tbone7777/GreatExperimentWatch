@@ -62,7 +62,7 @@ st.write(f"### {len(articles)} articles matched")
 for article in articles:
     st.markdown(f"#### [{article['title']}]({article['link']})")
     st.caption(f"{article['source']} — {article['published']}")
-    st.write(article['summary'])
+    st.write(article['summary'], unsafe_allow_html=True)
     st.markdown("---")
 
 # --- Export PDF ---
