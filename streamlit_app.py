@@ -39,7 +39,7 @@ def fetch_articles():
             if any(kw.lower() in content for kw in KEYWORDS) or (search_term.lower() in content if search_term else False):
                 articles.append({
                     "title": entry.title,
-                    "summary": entry.get("summary", "No summary available."),
+                    "summary": entry.get("summary", "No summary available.").replace("<p>", "").replace("</p>", ""),
                     "link": entry.link,
                     "source": source,
                     "published": entry.get("published", "No date"),
@@ -48,10 +48,19 @@ def fetch_articles():
 
 articles = fetch_articles()
 
-# --- Emergency Alert ---
-alert_triggered = any("military coup" in a['summary'].lower() or "martial law" in a['summary'].lower() for a in articles)
-if alert_triggered:
+# --- Emergency Alert Filtering ---
+emergency_terms = ["military coup", "martial law"]
+emergencies = [a for a in articles if any(term in a['summary'].lower() for term in emergency_terms)]
+non_emergencies = [a for a in articles if a not in emergencies]
+
+if emergencies:
     st.error("🚨 EMERGENCY ALERT: Potential authoritarian escalation detected.")
+    st.markdown("### 🚨 Emergency Incidents")
+    for article in emergencies:
+        st.markdown(f"#### [{article['title']}]({article['link']})", unsafe_allow_html=True)
+        st.caption(f"{article['source']} — {article['published']}")
+        st.write(article['summary'])
+        st.markdown("---")
 
 # --- Main Dashboard ---
 st.title("🛡️ Great Experiment Watch")
@@ -59,18 +68,33 @@ st.markdown("Monitoring global threats to democracy in real time.")
 
 st.write(f"### {len(articles)} articles matched")
 
-for article in articles:
-    st.markdown(f"#### [{article['title']}]({article['link']})")
+for article in non_emergencies:
+    st.markdown(f"#### [{article['title']}]({article['link']})", unsafe_allow_html=True)
     st.caption(f"{article['source']} — {article['published']}")
-    st.write(article['summary'], unsafe_allow_html=True)
+    st.write(article['summary'])
     st.markdown("---")
+
+# --- Democracy Lifespan Monitor ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("📉 Democracy Lifespan Monitor")
+lifespan_pct = st.sidebar.slider("Estimated % of Democracy Remaining", 0, 100, 68)
+st.sidebar.progress(lifespan_pct / 100)
+
+# --- Plan to Leave Section ---
+with st.expander("📦 View / Edit Your Emergency Relocation Plan"):
+    st.markdown("""
+    - **Passport:** ✅ Ready  
+    - **Digital Security:** [Update device encryption, 2FA, password manager]  
+    - **Relocation Country Shortlist:** Spain 🇪🇸, Portugal 🇵🇹, Ireland 🇮🇪  
+    - **Money Moved Offshore:** [in progress]  
+    - **Citizenship by Descent:** [father: Cuba 🇨🇺 → Spain path]  
+    """)
 
 # --- Export PDF ---
 def generate_pdf(data):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-
     pdf.cell(200, 10, txt="Great Experiment Watch — Weekly Brief", ln=True, align="C")
     pdf.ln(10)
 
